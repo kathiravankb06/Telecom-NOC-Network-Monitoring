@@ -16,111 +16,69 @@ import time
 from datetime import datetime
 from ping3 import ping
 
-
-# ============================================================
-# DEVICE CONFIGURATION (Modify IPs as needed)
-# ============================================================
-
+# ==========================================
+# DEVICE LIST
+# ==========================================
 devices = [
-    ("8.8.8.8", "Core"),             # Represents upstream core connectivity
-    ("1.1.1.1", "Backhaul"),         # Represents transport/backhaul path
-    ("10.100.152.21", "Aggregation")  # Represents local aggregation/gateway
+    ("8.8.8.8", "Core"),
+    ("1.1.1.1", "Backhaul"),
+    ("10.100.152.21", "Aggregation")
 ]
 
-
-# ============================================================
-# MONITORING PARAMETERS
-# ============================================================
-
-CHECK_INTERVAL = 5     # Seconds between checks
-THRESHOLD = 3          # Consecutive checks required for state change
-LOG_FILE = "log.txt"  # Log output file
-
-
-# ============================================================
-# STATUS TRACKING STRUCTURES
-# ============================================================
-
+# ==========================================
+# STATUS + COUNTERS
+# ==========================================
 last_status = {name: "UNKNOWN" for _, name in devices}
 failure_count = {name: 0 for _, name in devices}
 success_count = {name: 0 for _, name in devices}
 
+THRESHOLD = 2        # Faster detection
+POLL_INTERVAL = 2   # Seconds
 
-# ============================================================
-# LOGGING FUNCTION
-# ============================================================
+print("Telecom NOC Monitoring Started")
 
-def log_event(device_name, status, timestamp):
-    """Writes monitoring events to log file."""
-    with open(LOG_FILE, "a") as log:
-        log.write(f"{device_name},{status},{timestamp}\n")
+# ==========================================
+# MONITOR LOOP
+# ==========================================
+while True:
+    for ip, name in devices:
 
+        try:
+            response = ping(ip, timeout=1)
+            is_up = response is not None
+        except Exception:
+            is_up = False
 
-# ============================================================
-# MONITORING FUNCTION
-# ============================================================
+        # Update counters
+        if is_up:
+            success_count[name] += 1
+            failure_count[name] = 0
+        else:
+            failure_count[name] += 1
+            success_count[name] = 0
 
-def monitor_devices():
-    """Continuously monitors configured telecom network devices."""
+        # DOWN detection
+        if failure_count[name] >= THRESHOLD and last_status[name] != "DOWN":
 
-    print("Telecom NOC Monitoring Started\n")
+            last_status[name] = "DOWN"
+            now = datetime.now().strftime("%H:%M:%S")
+            message = f"{name} changed to DOWN at {now}"
 
-    while True:
+            print(message)
 
-        for ip, name in devices:
+            with open("log.txt", "a") as log:
+                log.write(f"{name},DOWN,{now}\n")
 
-            # ------------------------------------------------
-            # ICMP Reachability Check
-            # ------------------------------------------------
-            try:
-                response = ping(ip, timeout=2)
-                is_up = response is not None
-            except Exception:
-                is_up = False
+        # UP detection
+        if success_count[name] >= THRESHOLD and last_status[name] != "UP":
 
-            # ------------------------------------------------
-            # Update Success / Failure Counters
-            # ------------------------------------------------
-            if is_up:
-                success_count[name] += 1
-                failure_count[name] = 0
-            else:
-                failure_count[name] += 1
-                success_count[name] = 0
+            last_status[name] = "UP"
+            now = datetime.now().strftime("%H:%M:%S")
+            message = f"{name} changed to UP at {now}"
 
-            # ------------------------------------------------
-            # DOWN Detection Logic
-            # ------------------------------------------------
-            if failure_count[name] >= THRESHOLD and last_status[name] != "DOWN":
+            print(message)
 
-                last_status[name] = "DOWN"
-                now = datetime.now().strftime("%H:%M:%S")
-                message = f"{name} changed to DOWN at {now}"
+            with open("log.txt", "a") as log:
+                log.write(f"{name},UP,{now}\n")
 
-                print(message)
-                log_event(name, "DOWN", now)
-
-            # ------------------------------------------------
-            # UP Detection Logic
-            # ------------------------------------------------
-            if success_count[name] >= THRESHOLD and last_status[name] != "UP":
-
-                last_status[name] = "UP"
-                now = datetime.now().strftime("%H:%M:%S")
-                message = f"{name} changed to UP at {now}"
-
-                print(message)
-                log_event(name, "UP", now)
-
-        # ----------------------------------------------------
-        # Wait before next monitoring cycle
-        # ----------------------------------------------------
-        time.sleep(CHECK_INTERVAL)
-
-
-# ============================================================
-# MAIN ENTRY POINT
-# ============================================================
-
-if __name__ == "__main__":
-    monitor_devices()
+    time.sleep(POLL_INTERVAL)
