@@ -1,0 +1,6 @@
+Telecom NOC Monitoring Started
+Core changed to UP at 17:38:16
+Backhaul changed to UP at 17:38:16
+Aggregation changed to UP at 17:38:16
+Core changed to DOWN at 17:39:34
+Backhaul changed to DOWN at 17:39:36
