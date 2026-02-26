@@ -76,20 +76,6 @@ This indicates a major upstream or shared infrastructure failure affecting multi
 
 ---
 
-## 📂 Project Structure
-
-telecom-noc-network-monitoring/
-│
-├── monitor.py
-├── config.json
-├── sample_logs.txt
-├── requirements.txt
-├── README.md
-└── screenshots/
-
-
----
-
 ## 🧪 Testing & Simulation
 The project can be tested by:
 - Disconnecting network connectivity
